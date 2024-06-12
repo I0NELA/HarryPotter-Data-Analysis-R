@@ -9,12 +9,12 @@ library(tidyverse)
 shortversioncharacters <- read_csv("00_raw_data/hp-scripts-kaggle-dataset/shortversioncharacters.csv")
 
 # Create the folder (if not already exists) to save the images
-dir.create("01_tidy_data/imgs", showWarnings = FALSE)
+dir.create("01_tidy_data/characters-images", showWarnings = FALSE)
 
 # Download the images
 for (i in 1:nrow(shortversioncharacters)) {
   download.file(
       shortversioncharacters$image[i],
-      destfile = paste0("01_tidy_data/imgs/", shortversioncharacters$name[i], ".jpg")
+      destfile = paste0("01_tidy_data/characters-images/", shortversioncharacters$name[i], ".jpg")
       )
 }
