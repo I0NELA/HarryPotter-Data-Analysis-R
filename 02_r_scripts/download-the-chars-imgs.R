@@ -1,6 +1,7 @@
-
-# Download the images of the characters from the URLs in the shortversioncharacters.csv file:
-# The images will be saved in the "imgs" folder of the 01_tidy_data folder
+###
+## Download the images of the characters from the URLs in the shortversioncharacters.csv file:
+## The images will be saved in the "characters-images" folder of the 01_tidy_data folder
+###
 
 # Load the necessary libraries
 library(tidyverse)
