@@ -4,6 +4,8 @@
 library(readr)
 library(tm)
 library(SnowballC)
+library(dplyr)
+library(ggplot2)
 
 
 ##
@@ -53,4 +55,32 @@ hp_df$cleaned_dialog_text <- cleaned_dialog_vector
 summary(hp_df)
 head(hp_df)
 
-View(hp_df)
+
+##
+##  STEP 03 - Exploratory Data Analysis ###
+
+### Plot the number of characters in each `movie` ###
+
+# Num of characters per movie
+num_characters_per_movie <- hp_df %>%
+  group_by(movie) %>%
+  summarize(num_characters = n_distinct(character))
+head(num_characters_per_movie)
+
+# Plot the number of characters per movie and 
+# save the plot as a PNG file in the 
+# `03_plots/basic_analysis_01` directory:
+plot <- {
+  ggplot(num_characters_per_movie, aes(x = movie, y = num_characters, fill = movie)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Number of Characters in Each Movie",
+        x = "",
+        y = "N° of Characters") +
+    theme(
+      axis.text.x = element_text(angle = 65, hjust = 1),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5)
+    )
+}
+
+ggsave("03_plots/basic_analysis_01/characters_per_movie.png", plot, width = 10, height = 10, dpi = 300)
