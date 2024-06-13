@@ -41,9 +41,6 @@ clean_text <- function(text) {
   return(as.character(text))
 }
 
-# Test the function
-surround_with_spaces("be here...Professor", "\w\.\.\.\w", 5, 0)
-
 # Apply clean_text to each dialog entry and store the results in a list
 cleaned_dialog_list <- lapply(hp_df$dialog, clean_text)
 
