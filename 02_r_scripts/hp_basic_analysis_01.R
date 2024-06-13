@@ -67,10 +67,7 @@ num_characters_per_movie <- hp_df %>%
   summarize(num_characters = n_distinct(character))
 head(num_characters_per_movie)
 
-# Plot the number of characters per movie and 
-# save the plot as a PNG file in the 
-# `03_plots/basic_analysis_01` directory:
-plot <- {
+num_characters_per_movie_plot <- {
   ggplot(num_characters_per_movie, aes(x = movie, y = num_characters, fill = movie)) +
     geom_bar(stat = "identity") +
     labs(title = "Number of Characters in Each Movie",
@@ -83,4 +80,6 @@ plot <- {
     )
 }
 
-ggsave("03_plots/basic_analysis_01/characters_per_movie.png", plot, width = 10, height = 10, dpi = 300)
+ggsave("03_plots/basic_analysis_01/characters_per_movie.png", num_characters_per_movie_plot, width = 10, height = 10, dpi = 300)
+
+
