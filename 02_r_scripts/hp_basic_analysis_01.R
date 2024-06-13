@@ -83,3 +83,23 @@ num_characters_per_movie_plot <- {
 ggsave("03_plots/basic_analysis_01/characters_per_movie.png", num_characters_per_movie_plot, width = 10, height = 10, dpi = 300)
 
 
+### Plot the number of dialogs per `movie` ###
+num_dialogs_per_movie <- hp_df %>%
+  group_by(movie) %>%
+  summarize(num_dialogs = n())
+head(num_dialogs_per_movie)
+
+num_dialogs_per_movie_plot <- {
+  ggplot(num_dialogs_per_movie, aes(x = movie, y = num_dialogs, fill = movie)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Number of Dialogs in Each Movie",
+        x = "",
+        y = "N° of Dialogs") +
+    theme(
+      axis.text.x = element_text(angle = 65, hjust = 1),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5)
+    )
+}
+
+ggsave("03_plots/basic_analysis_01/dialogs_per_movie.png", num_dialogs_per_movie_plot, width = 10, height = 10, dpi = 300)
