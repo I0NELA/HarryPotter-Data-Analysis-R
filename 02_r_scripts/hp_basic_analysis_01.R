@@ -14,7 +14,7 @@ library(ggplot2)
 base_path <- "01_tidy_data/Harry-Potter-Movies-Dataset-Kaggle/"
 hp_df <- read_csv(paste0(base_path, "hp-scripts-combined.csv"))
 summary(hp_df)
-head(hp_df)
+head(hp_df, 10)
 
 ##
 ##  STEP 02 - Data Cleaning ###
@@ -53,7 +53,7 @@ cleaned_dialog_vector <- unlist(cleaned_dialog_list)
 hp_df$cleaned_dialog_text <- cleaned_dialog_vector
 
 summary(hp_df)
-head(hp_df)
+head(hp_df, 10)
 
 
 ##
@@ -65,7 +65,7 @@ head(hp_df)
 num_characters_per_movie <- hp_df %>%
   group_by(movie) %>%
   summarize(num_characters = n_distinct(character))
-head(num_characters_per_movie)
+head(num_characters_per_movie, 10)
 
 num_characters_per_movie_plot <- {
   ggplot(num_characters_per_movie, aes(x = movie, y = num_characters, fill = movie)) +
@@ -88,6 +88,7 @@ num_dialogs_per_movie <- hp_df %>%
   group_by(movie) %>%
   summarize(num_dialogs = n())
 head(num_dialogs_per_movie)
+head(num_dialogs_per_movie, 10)
 
 num_dialogs_per_movie_plot <- {
   ggplot(num_dialogs_per_movie, aes(x = movie, y = num_dialogs, fill = movie)) +
@@ -103,3 +104,26 @@ num_dialogs_per_movie_plot <- {
 }
 
 ggsave("03_plots/basic_analysis_01/dialogs_per_movie.png", num_dialogs_per_movie_plot, width = 10, height = 10, dpi = 300)
+
+
+### Plot the number of distinct chapters per `movie` ###
+num_scenes_per_movie <- hp_df %>%
+  group_by(movie) %>%
+  summarize(num_scenes = n_distinct(chapter), release_year = release_year) %>%
+  order(release_year)
+head(num_scenes_per_movie, 10)
+
+num_scenes_per_movie_plot <- {
+  ggplot(num_scenes_per_movie, aes(x = movie, y = num_scenes, fill = movie)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Number of Distinct Scenes in Each Movie",
+        x = "",
+        y = "N° of Scenes") +
+    theme(
+      axis.text.x = element_text(angle = 65, hjust = 1),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5)
+    )
+}
+
+ggsave("03_plots/basic_analysis_01/scenes_per_movie.png", num_scenes_per_movie_plot, width = 10, height = 10, dpi = 300)
