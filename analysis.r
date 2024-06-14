@@ -70,9 +70,8 @@ total_freq <- sum(freq_df$frequency)
 cat("Total sum of frequencies:", total_freq, "\n")
 freq_ <- freq_df[2:5,]
 freq_$Name
+png("HP_Scripts_dataset/img/pie of the houses.png", width = 1500, height = 1500, res = 300)  # Adjust dimensions and resolution as needed
 pie(freq_$frequency, labels =freq_$Name, main="Houses at Hogwarts") #clearly a preference over the houses 
-png("HP_Scripts_dataset/img/pie of the houses.png", width = 1000, height =1000, res = 500)  # Adjust dimensions and resolution as needed
-pie(freq$frequency, labels = freq$Name, main = "Houses at Hogwarts")
 dev.off()
 
 character_freq <- hpscripts %>%
@@ -128,7 +127,7 @@ word_frequencies <- tokenized_words %>%
 # Identify the top 10 most frequently said words for each of the top 4 characters
 top_10_words_per_character <- word_frequencies %>%
   group_by(character) %>%
-  slice_max(order_by = freq, n = 200) %>%
+  slice_max(order_by = freq, n = 250) %>%
   ungroup()
 
 # Print the result
@@ -142,7 +141,7 @@ for (char in unique(top_10_words_per_character$character)) {
   png(paste0("HP_Scripts_dataset/img/wordcloud_", gsub(" ", "_", tolower(char)), ".png"), width = 800, height = 800)
   par(mar = c(5, 4, 4, 2) + 0.1)  # Adjust the margin for space at the bottom
   wordcloud(words = char_data$word, freq = char_data$freq, 
-            scale = c(5, 0.5), 
+            scale = c(10, 0.9), 
             colors = brewer.pal(8, "Dark2"), 
             random.order = FALSE, 
             rot.per = 0.35)
