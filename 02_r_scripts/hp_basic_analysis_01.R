@@ -126,4 +126,4 @@ num_scenes_per_movie_plot <- {
     )
 }
 
-ggsave("03_plots/basic_analysis_01/scenes_per_movie.png", num_scenes_per_movie_plot, width = 10, height = 10, dpi = 300)
+ggsave("03_plots/basic_analysis_01/chapters_per_movie.png", num_scenes_per_movie_plot, width = 10, height = 10, dpi = 300)
