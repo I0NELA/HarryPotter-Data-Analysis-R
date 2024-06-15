@@ -34,39 +34,55 @@ combined_df
 rownames(combined_df) <- NULL
 combined_df
 
-td_emotions <- combined_df[1:10, ]
-td_polarity <- combined_df[11:12, ]
+td_emotions <- combined_df[1:8, ]
+td_polarity <- combined_df[9:10, ]
 
 
 ##
 ## Plot emotions
 require("ggplot2")
 
-ggplot(td_emotions, aes(x = sentiment, y = count, fill = sentiment)) +
-  geom_bar(stat = "identity") +
-  labs(
-    title = "Emotions in Harry Potter Dialogs",
-    x = "Emotion",
-    y = "Count"
-  ) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.title = element_blank()
-  )
+emotions_plot <- {
+  ggplot(td_emotions, aes(x = sentiment, y = count, fill = sentiment)) +
+    geom_bar(stat = "identity") +
+    labs(
+      title = "Emotions in Harry Potter Dialogs",
+      x = "Emotion",
+      y = "Count"
+    ) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5)
+    )
+}
+
+if (!dir.exists("03_plots/sentiment_analysis"))
+  dir.create("03_plots/sentiment_analysis")
+
+ggsave("03_plots/sentiment_analysis/emotions_plot.png", emotions_plot, width = 10, height = 10, dpi = 300)
 
 
 ##
 ## Plot polarity
 require("ggplot2")
 
-ggplot(td_polarity, aes(x = sentiment, y = count, fill = sentiment)) +
-  geom_bar(stat = "identity") +
-  labs(
-    title = "Polarity in Harry Potter Dialogs",
-    x = "Polarity",
-    y = "Count"
-  ) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.title = element_blank()
-  )
+polarity_plot <- {
+  ggplot(td_polarity, aes(x = sentiment, y = count, fill = sentiment)) +
+    geom_bar(stat = "identity") +
+    labs(
+      title = "Polarity in Harry Potter Dialogs",
+      x = "Polarity",
+      y = "Count"
+    ) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5)
+    )
+}
+
+if (!dir.exists("03_plots/sentiment_analysis"))
+  dir.create("03_plots/sentiment_analysis")
+
+ggsave("03_plots/sentiment_analysis/polarity_plot.png", polarity_plot, width = 10, height = 10, dpi = 300)
