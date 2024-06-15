@@ -1,6 +1,6 @@
 ##
 ## Load the libraries
-
+source("02_r_scripts/utilities.R")
 library(readr)
 library(tm)
 library(SnowballC)
