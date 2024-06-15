@@ -4,6 +4,7 @@ library(dplyr)
 library(reshape2) 
 library(tm)
 library(igraph)
+library(tidyr)
 file_path <- ("HP_Scripts_dataset/datasets/combined.csv")
 # Read the UTF-16 encoded file
 hpscripts <- read_csv(file_path, locale = locale(encoding = "UTF-16"))
@@ -24,6 +25,7 @@ characters <- c(rbind(names, surnames))
 # View the resulting vector
 stopwords <- stopwords("en")
 characters <- characters[!tolower(characters) %in% stopwords]
+characters <- characters[characters != "2" & characters != "Hat" & characters != "head" & characters != "Old"]
 characters
 character_mentions <- list()
 
@@ -56,31 +58,62 @@ character_mentions_df <- do.call(rbind.data.frame, character_mentions)
 rownames(character_mentions_df) <- NULL
 character_mentions_df <- character_mentions_df[order(-character_mentions_df$Frequency), ]
 head(character_mentions_df)
+character_mentions_df
+character_mentions_df$Character
+character_mentions_df$Speakers
 
+#####
+single_words <- str_split(character_mentions_df$Speakers, ", ")[[1]]
 
-directed_edges_df <- data.frame(From = character(), To = character(), stringsAsFactors = FALSE)
+# Step 2: Ensure Uniqueness of Single Words
+unique_single_words <- unique(unlist(str_split(single_words, " ")))
+num_rows <- nrow(character_mentions_df)
+num_unique_words <- length(unique_single_words)
 
-# Iterate through each row in hpscripts
-for (i in 1:nrow(hpscripts)) {
-  speaker <- hpscripts$character[i]
-  mentioned_characters <- unique(unlist(str_extract_all(tolower(hpscripts$dialog[i]), tolower(paste0(characters1, collapse = "|")))))
-  
-  # Create directed edges from speaker to each mentioned character
-  for (mentioned in mentioned_characters) {
-    if (mentioned != speaker && mentioned %in% characters1) {
-      directed_edges_df <- rbind(directed_edges_df, data.frame(From = speaker, To = mentioned, stringsAsFactors = FALSE))
-    }
-  }
-}
+# Create a vector of unique single words repeating as needed
+character_mentions_df$Speakers <- unique_single_words[seq_len(num_rows) %% num_unique_words + 1]
+characters <- characters[characters != "2" & characters != "Hat" & characters != "head" & characters != "Old"]
+characters <- characters[1:nrow(character_mentions_df)]
+character_mentions_df$Speakers <- characters
+character_mentions_df$Speakers
+character_mentions_df$Character
+character_mentions_df
+#####
+speaker_mentions <- character_mentions_df %>%
+  filter(Frequency > 0) %>%  # Filter out characters with zero mentions
+  group_by(Speakers) %>%
+  summarize(Characters = list(unique(Character))) %>%
+  unnest(cols = Characters)
 
-# Remove the first empty row from initialization
-directed_edges_df <- directed_edges_df[-1, ]
-directed_edges_df
-# Create graph object
+# Step 2: Create a Data Frame for Edges
+directed_edges_df <- speaker_mentions %>%
+  rename(from = Speakers, to = Characters) %>%
+  distinct()  # Remove duplicate pairs
+
+print(directed_edges_df)
+
+# Step 3: Create the Graph
 g <- graph_from_data_frame(directed_edges_df, directed = TRUE)
+g <- simplify(g, remove.multiple = FALSE, remove.loops = TRUE) 
 
-# Plot the graph (messy)
-plot(g, layout = layout.circle,
-     edge.arrow.size = 0.5, vertex.color = "lightblue",
-     vertex.size = 0.1, vertex.label.cex = 1, edge.color = "gray",
-     main = "Character Mentions Network")
+vertices <- V(g)
+print(vertices)
+num_vertices <- vcount(g)
+print(num_vertices)
+vertex_names <- V(g)$name
+print(vertex_names)
+
+edges <- E(g)
+print(edges)
+
+
+plot(g,
+     layout = layout.random,  # Choose a layout algorithm (e.g., circular layout)
+     vertex.color = "lightblue",  # Color of vertices
+     vertex.size = 5,  # Size of vertices
+     vertex.label.dist = 0.8,  # Distance of vertex labels from vertices
+     vertex.label.color = "black",  # Color of vertex labels
+     edge.color = "gray",  # Color of edges
+     edge.width = 2,  # Width of edges
+     main = "General Graph Visualization"  # Title of the plot
+)
