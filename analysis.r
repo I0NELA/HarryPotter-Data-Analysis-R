@@ -171,4 +171,5 @@ new_table$Character_top20[1:nrow(result1)] <- result1$Name
 print(new_table) #difference between characters who stayed and talk the most
 #NOT ORDER
 
-
+#order the last table
+#make wordcloud shaped like character or sm
