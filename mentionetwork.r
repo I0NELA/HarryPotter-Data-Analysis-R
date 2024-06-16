@@ -5,115 +5,92 @@ library(reshape2)
 library(tm)
 library(igraph)
 library(tidyr)
+library(visNetwork)
+library(RColorBrewer)
 file_path <- ("HP_Scripts_dataset/datasets/combined.csv")
-# Read the UTF-16 encoded file
 hpscripts <- read_csv(file_path, locale = locale(encoding = "UTF-16"))
-# View the data
-head(hpscripts)
-head(hpscripts$character)
-# Get the list of unique movies
-single_word_names <- hpscripts$character[grep("^\\w+$", hpscripts$character)]
-multi_word_names <- hpscripts$character[!(hpscripts$character %in% single_word_names)]
-multi_word_names <- c(multi_word_names, "Voldemort", "Dobby")
-characters<- unique(multi_word_names)
-split_names <- str_split(characters, "\\s+")
-# Extract "name" and "surname" into separate vectors
-names <- sapply(split_names, function(x) x[1])
-surnames <- sapply(split_names, function(x) ifelse(length(x) > 1, x[2], ""))
-# Combine into a data frame
-characters <- c(rbind(names, surnames))
-# View the resulting vector
-stopwords <- stopwords("en")
-characters <- characters[!tolower(characters) %in% stopwords]
-characters <- characters[characters != "2" & characters != "Hat" & characters != "head" & characters != "Old"]
+characters <-unique(hpscripts$character)
 characters
-character_mentions <- list()
 
+####
+character_mentions <- list()
 collect_character_mentions <- function(character_name) {
-  # Find rows where the character is mentioned in dialogues
   mentions <- hpscripts %>%
     filter(str_detect(tolower(tolower(hpscripts$dialog)), tolower(character_name)))
   
   if (nrow(mentions) > 0) {
-    # Count the number of occurrences
     occurrence_count <- nrow(mentions)
-    # Get unique speakers
     unique_speakers <- unique(mentions$character)
     
-    # Return data as a list
     return(list(Character = character_name,
                 Frequency = occurrence_count,
                 Speakers = paste(unique_speakers, collapse = ", ")))
   } else {
-    # If character is not mentioned, return NA values
     return(list(Character = character_name,
                 Frequency = 0,
                 Speakers = ""))
   }
 }
-for (char in characters) {
-  character_mentions[[char]] <- collect_character_mentions(char)
+characters <- characters[nzchar(characters)]
+for (i in seq_along(characters)) {
+  char <- characters[i]
+  
+  if (grepl(" ", char)) {
+    character_mentions[[char]] <- collect_character_mentions(char)
+  } else {
+    character_mentions[[char]] <- collect_character_mentions(char)
+  }
 }
 character_mentions_df <- do.call(rbind.data.frame, character_mentions)
 rownames(character_mentions_df) <- NULL
 character_mentions_df <- character_mentions_df[order(-character_mentions_df$Frequency), ]
 head(character_mentions_df)
-character_mentions_df
-character_mentions_df$Character
-character_mentions_df$Speakers
 
-#####
-single_words <- str_split(character_mentions_df$Speakers, ", ")[[1]]
+####
+directed_edges_df <- data.frame(From = character(), To = character(), Weight = numeric(), stringsAsFactors = FALSE)
+for (i in 1:nrow(character_mentions_df)){
+  split_names <- unlist(strsplit(character_mentions_df[i,]$Speakers, ",\\s*"))
+  split_names
+  for (x in split_names){
+    speaker <- x
+    mentioned_character <- character_mentions_df$Character[i]
+    frequency <- character_mentions_df$Frequency[i]
+    if (mentioned_character != x) {
+        directed_edges_df <- rbind(directed_edges_df, data.frame(From = mentioned_character, To = x, Weight = frequency, stringsAsFactors = FALSE))
+      }
+    
+  }
+}
 
-# Step 2: Ensure Uniqueness of Single Words
-unique_single_words <- unique(unlist(str_split(single_words, " ")))
-num_rows <- nrow(character_mentions_df)
-num_unique_words <- length(unique_single_words)
+directed_edges_df <- directed_edges_df %>%
+  filter(From != "" & To != "")
+directed_edges_df <- directed_edges_df %>%
+  group_by(From, To) %>%
+  summarise(Weight = sum(Weight)) %>%
+  ungroup()
 
-# Create a vector of unique single words repeating as needed
-character_mentions_df$Speakers <- unique_single_words[seq_len(num_rows) %% num_unique_words + 1]
-characters <- characters[characters != "2" & characters != "Hat" & characters != "head" & characters != "Old"]
-characters <- characters[1:nrow(character_mentions_df)]
-character_mentions_df$Speakers <- characters
-character_mentions_df$Speakers
-character_mentions_df$Character
-character_mentions_df
-#####
-speaker_mentions <- character_mentions_df %>%
-  filter(Frequency > 0) %>%  # Filter out characters with zero mentions
-  group_by(Speakers) %>%
-  summarize(Characters = list(unique(Character))) %>%
-  unnest(cols = Characters)
-
-# Step 2: Create a Data Frame for Edges
-directed_edges_df <- speaker_mentions %>%
-  rename(from = Speakers, to = Characters) %>%
-  distinct()  # Remove duplicate pairs
-
-print(directed_edges_df)
-
-# Step 3: Create the Graph
+####
 g <- graph_from_data_frame(directed_edges_df, directed = TRUE)
-g <- simplify(g, remove.multiple = FALSE, remove.loops = TRUE) 
+E(g)$weight <- directed_edges_df$Weight
 
-vertices <- V(g)
-print(vertices)
-num_vertices <- vcount(g)
-print(num_vertices)
-vertex_names <- V(g)$name
-print(vertex_names)
+#### chaotic
+data <- toVisNetworkData(g)
+visNetwork(nodes = data$nodes, edges = data$edges) %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visInteraction(navigationButtons = TRUE) %>%
+  visPhysics(stabilization = TRUE)  # Disable physics to prevent bouncing
 
-edges <- E(g)
-print(edges)
-
-
-plot(g,
-     layout = layout.random,  # Choose a layout algorithm (e.g., circular layout)
-     vertex.color = "lightblue",  # Color of vertices
-     vertex.size = 5,  # Size of vertices
-     vertex.label.dist = 0.8,  # Distance of vertex labels from vertices
-     vertex.label.color = "black",  # Color of vertex labels
-     edge.color = "gray",  # Color of edges
-     edge.width = 2,  # Width of edges
-     main = "General Graph Visualization"  # Title of the plot
-)
+####
+g <- igraph::simplify(g, remove.multiple = TRUE, remove.loops = FALSE, 
+                 edge.attr.comb=c(weight="sum"))              
+E(g)$color <- ifelse(E(g)$weight > 200, "purple",
+               ifelse(E(g)$weight > 100, "blue",
+               ifelse(E(g)$weight > 50, "green",
+               ifelse(E(g)$weight > 20, "yellow", "red"))))
+set.seed(5) # Plot the graph (weighted)  
+par(mar = c(0,0,0,0))
+plot(g, vertex.shape="circle",vertex.label.color="black", edge.arrow.size = 0.3, vertex.size = 3,
+     vertex.label.cex=1,vertex.label.dist=1, edge.curved=0.5,layout=layout_with_fr(g)*2,rescale=F,edge.color = E(g)$color,layout.center = TRUE)
+# Add a legend
+legend("bottomright", legend = c("0-10", "20-50", "50-100", "100-200", "200+"),
+       col = c("red", "yellow", "green", "blue", "purple"), lty = 2, cex = 1.5)
