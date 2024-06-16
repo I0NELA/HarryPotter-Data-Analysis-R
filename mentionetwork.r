@@ -7,6 +7,8 @@ library(igraph)
 library(tidyr)
 library(visNetwork)
 library(RColorBrewer)
+library(gridExtra)
+library(png)
 file_path <- ("HP_Scripts_dataset/datasets/combined.csv")
 hpscripts <- read_csv(file_path, locale = locale(encoding = "UTF-16"))
 characters <-unique(hpscripts$character)
@@ -61,7 +63,10 @@ for (i in 1:nrow(character_mentions_df)){
     
   }
 }
+directed_edges_df
 
+
+####
 directed_edges_df <- directed_edges_df %>%
   filter(From != "" & To != "")
 directed_edges_df <- directed_edges_df %>%
@@ -72,6 +77,18 @@ directed_edges_df <- directed_edges_df %>%
 ####
 g <- graph_from_data_frame(directed_edges_df, directed = TRUE)
 E(g)$weight <- directed_edges_df$Weight
+
+relationships_text <- paste(head(directed_edges_df$From), " -> ", head(directed_edges_df$To))
+label_y <- seq(0.2, 0.1, length.out = nrow(head(directed_edges_df)))
+plot.new()
+text(x = rep(0.5, nrow(head(directed_edges_df))), y = label_y, labels = relationships_text, cex = 1.2)
+text(x=0.5, y=0.23,"Instances of edges",  cex = 1.5)
+png("HP_Scripts_dataset/img/elationships.png", width = 1700, height =1200, units = "px", res = 300)
+label_y <- seq(0.6, 0.1, length.out = nrow(head(directed_edges_df)))
+plot.new()
+text(x = rep(0.5, nrow(head(directed_edges_df))), y = label_y, labels = relationships_text, cex = 1.2)
+text(x=0.5, y=0.8,"Instances of edges",  cex = 1.5)
+dev.off()
 
 #### chaotic
 data <- toVisNetworkData(g)
