@@ -81,6 +81,24 @@ directed_edges_df <- directed_edges_df %>%
 g <- graph_from_data_frame(directed_edges_df, directed = TRUE)
 E(g)$weight <- directed_edges_df$Weight
 
+#### chaotic
+E(g)$weight <- edges$weight
+E(g)$color <- ifelse(E(g)$weight > 100, "purple",
+                     ifelse(E(g)$weight > 50, "red",
+                            ifelse(E(g)$weight > 30, "yellow",
+                                   ifelse(E(g)$weight > 20, "blue", "green"))))
+data <- toVisNetworkData(g)
+visNetwork(nodes = data$nodes, edges = data$edges) %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visInteraction(navigationButtons = TRUE)
+  visPhysics(enabled = FALSE)
+data
+write.csv(data$nodes, "HP_Scripts_dataset/img/character_mentions_nodes.csv", row.names = FALSE)
+edges_df <- data$edges[, c("from", "to", "weight", "color")]
+data$edges$Weight <- NULL
+write.csv(data$edges, "HP_Scripts_dataset/img/character_mentions_edges.csv", row.names = FALSE)
+
+
 relationships_text <- paste(head(directed_edges_df$From), " -> ", head(directed_edges_df$To))
 label_y <- seq(0.2, 0.1, length.out = nrow(head(directed_edges_df)))
 plot.new()
@@ -111,17 +129,3 @@ legend("bottomright", legend = c("0-10", "10-20", "20-30", "30-50", "100+"),
        col = c("green", "blue", "yellow", "red", "purple"), lwd = 2, cex = 1,
        title = "Edge Weight Range")
 dev.off()
-
-
-#### chaotic
-data <- toVisNetworkData(g)
-# Plot the network with customized edge colors
-visNetwork(nodes = data$nodes, edges = data$edges) %>%
-  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
-  visInteraction(navigationButtons = TRUE)
-  visPhysics(enabled = T)
-data
-write.csv(data$nodes, "HP_Scripts_dataset/img/character_mentions_nodes.csv", row.names = FALSE)
-edges_df <- data$edges[, c("from", "to", "weight", "color")]
-data$edges$Weight <- NULL
-write.csv(data$edges, "HP_Scripts_dataset/img/character_mentions_edges.csv", row.names = FALSE)
