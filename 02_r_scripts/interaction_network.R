@@ -11,6 +11,8 @@ library(webshot)
 library(purrr)
 library(dplyr)
 webshot::install_phantomjs()
+library(RColorBrewer)
+library(visNetwork)
 
 ##
 ## Load the data
@@ -121,7 +123,8 @@ head(interactions_df)
 
 # Create an undirected graph from the dataframe
 g <- graph_from_data_frame(d = interactions_df, directed = FALSE)
-E(g)$weight <- interactions_df$count
+E(g)$weight <- interactions_df$count # Add the weight to the edges
+E(g)[1]$weight
 
 # Extract the Giant Connected Component (GCC)
 gcc_indices <- which.max(components(g)$csize)
@@ -129,22 +132,21 @@ gcc <- induced_subgraph(g, which(components(g)$membership == gcc_indices))
 
 # Detect community using the Edge Betweenness method
 partition <- cluster_edge_betweenness(gcc)
-# partition_louvain <- cluster_louvain(gcc)
 
 # To add the community information back to the graph as an attribute
-V(gcc)$community <- membership(partition)
+V(g)$community <- membership(partition)
 
 # A dictionary-like structure for node names and their community
-communities <- data.frame(node = V(gcc)$name, community = V(gcc)$community)
-head(communities)
+communities_df <- data.frame(node = V(g)$name, community = V(g)$community)
+head(communities_df, 10)
 
-# Plot the top 7 biggest communities:
-top_7_communities <- communities %>%
+# Plot the top 7 biggest communities in the network:
+top_7_communities <- communities_df %>%
   group_by(community) %>%
   summarize(count = n()) %>%
   arrange(desc(count)) %>%
   head(7)
-head(top_7_communities)
+head(top_7_communities, 10)
 
 communities_plot <- {
   ggplot(
@@ -180,7 +182,7 @@ ggsave("03_plots/interaction_network/top_7_communities.png", communities_plot, w
 
 # Convert partition membership to a named vector for easier access
 membership_vector <- membership(partition)
-names(membership_vector) <- V(gcc)$name
+names(membership_vector) <- V(g)$name
 
 # Initialize an empty list to store nodes by community
 communities_to_nodes <- list()
@@ -195,14 +197,15 @@ for (node in names(membership_vector)) {
     communities_to_nodes[[community]] <- c(communities_to_nodes[[community]], node)
   }
 }
-head(communities_to_nodes, 7)
+head(communities_to_nodes, 10)
 
 # Filter out communities with less than 2 members and order by size descending
 top_communities <- communities_to_nodes %>%
-  purrr::keep(~ length(.x) > 1) %>%
+  # purrr::keep(~ length(.x) > 1) %>%
   {
     .[order(-map_int(., length))]
-  }
+  } %>%
+  head(7)
 length(top_communities)
 head(top_communities)
 
@@ -218,7 +221,7 @@ for (community_name in names(top_communities)) {
   for (member in curr_comm) {
     curr_com_with_degrees <- rbind(
       curr_com_with_degrees,
-      data.frame(member = member, degree = degree(gcc, v = member))
+      data.frame(member = member, degree = degree(g, v = member))
     )
   }
 
@@ -260,4 +263,137 @@ for (community_name in names(top_communities)) {
     width = 10, height = 10, dpi = 300
   )
 }
+
+
+##
+## Build the communities graph.
+##
+## Generate the Graph Layout and Plot the Communities Network
+## the top 7 communities in the network with visNetwork
+
+# Create a vector of these top 7 community IDs
+top_7_communities_ids <- top_7_communities$community
+top_7_communities_ids
+
+# Filter nodes in 'g' to include only those in the top 7 communities
+nodes_in_top_communities <- V(g)[community %in% top_7_communities_ids]
+
+# Color palette for the top communities with RColorBrewer
+require("RColorBrewer")
+community_colors_brewer <- brewer.pal(
+  n = length(top_7_communities_ids),
+  name = "Set3"
+)
+community_colors_brewer
+
+# Assign colors to the communities
+color_community_mapping <- setNames(
+  community_colors_brewer,
+  as.character(top_7_communities_ids)
+)
+
+# Correctly assign colors to nodes in the dataframe
+nodes_df <- data.frame(
+  id = nodes_in_top_communities$name,
+  label = NA,
+  size = log(degree(g, v = nodes_in_top_communities) * 0.5 + 1) * 16,
+  color = sapply(
+    nodes_in_top_communities$community,
+    function(community) color_community_mapping[[as.character(community)]]
+  ),
+  group = as.character(nodes_in_top_communities$community)
+)
+head(nodes_df, 100)
+
+# Prepare Edges Data Frame
+edges_df <- as_data_frame(g, what = "edges")
+
+# Generate the visNetwork Plot
+require("visNetwork")
+
+if (!dir.exists("03_plots/interaction_network/communities_network")) {
+  dir.create("03_plots/interaction_network/communities_network")
+}
+
+vis_network <- visNetwork(
+  nodes_df,
+  edges_df,
+  width = "100%",
+  main = "Communities Interactions Network",
+) %>%
+  visNodes(
+    shape = "dot",
+    scaling = list(label = list(enabled = TRUE)),
+    font = list(size = 40, face = "arial", color = "#000000"),
+    color = list(background = nodes_df$color, border = nodes_df$color)
+  ) %>%
+  visEdges(
+    smooth = FALSE,
+    width = 0.5,
+    color = list(color = "rgba(200,200,200,0.5)")
+  ) %>%
+  visOptions(
+    height = "100%",
+    width = "100%",
+    highlightNearest = TRUE,
+    nodesIdSelection = TRUE,
+  ) %>%
+  visLayout(randomSeed = 222) %>%
+  visPhysics(
+    enabled = TRUE,
+    solver = "forceAtlas2Based",
+    forceAtlas2Based = list(
+      gravitationalConstant = -150, # More negative to increase repulsion
+      centralGravity = 0.01,
+      springLength = 500, # Increase for more space between nodes
+      springConstant = 0.08,
+      damping = 0.4,
+      avoidOverlap = 1 # Enable to avoid node overlap
+    )
+  ) %>%
+  addFontAwesome() %>%
+  visGroups(
+    groupname = "1",
+    color = community_colors_brewer[1],
+  ) %>%
+  visGroups(
+    groupname = "3",
+    color = community_colors_brewer[2],
+  ) %>%
+  visGroups(
+    groupname = "8",
+    color = community_colors_brewer[3],
+  ) %>%
+  visGroups(
+    groupname = "5",
+    color = community_colors_brewer[4],
+  ) %>%
+  visGroups(
+    groupname = "16",
+    color = community_colors_brewer[5],
+  ) %>%
+  visGroups(
+    groupname = "53",
+    color = community_colors_brewer[6],
+  ) %>%
+  visGroups(
+    groupname = "2",
+    color = community_colors_brewer[7],
+  ) %>%
+  visLegend(
+    useGroups = TRUE,
+    position = "left",
+    main = "IDs",
+    width = 0.1
+  )
+vis_network
+
+# Save the plot to an HTML file
+visSave(
+  vis_network,
+  "03_plots/interaction_network/communities_network/communities_network.html",
+  selfcontained = FALSE
+)
+
+
 
