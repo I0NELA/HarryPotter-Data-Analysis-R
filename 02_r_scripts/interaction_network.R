@@ -320,6 +320,7 @@ vis_network <- visNetwork(
   edges_df,
   width = "100%",
   main = "Communities Interactions Network",
+  submain = "( the top 7 communities )",
 ) %>%
   visNodes(
     shape = "dot",
