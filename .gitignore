@@ -40,3 +40,5 @@ README.html
 
 # VS Code plugin files
 */tempCodeRunnerFile.R
+
+*.DS_Store
