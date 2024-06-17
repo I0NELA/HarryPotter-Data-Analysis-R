@@ -153,19 +153,19 @@ communities_plot <- {
   ggplot(
     top_7_communities,
     aes(
-      x = reorder(community, count, decreasing = TRUE),
-      y = count,
+      y = reorder(community, count, decreasing = TRUE),
+      x = count,
       fill = as.factor(community)
     )
   ) +
-    geom_bar(stat = "identity") +
+    geom_bar(stat = "identity", position = "dodge") +
     labs(
       title = "Top 7 Largest Communities in Harry Potter Interaction Network",
-      x = "Community",
-      y = "Count"
+      y = "Community ID",
+      x = "Count"
     ) +
     theme(
-      axis.text.x = element_text(angle = 65, hjust = 1),
+      axis.text.y = element_text(angle = 0, hjust = 1),
       legend.position = "none",
       plot.title = element_text(hjust = 0.5)
     )
