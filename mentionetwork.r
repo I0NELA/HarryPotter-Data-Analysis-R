@@ -9,6 +9,7 @@ library(visNetwork)
 library(RColorBrewer)
 library(gridExtra)
 library(png)
+library(readr)
 file_path <- ("HP_Scripts_dataset/datasets/combined.csv")
 hpscripts <- read_csv(file_path, locale = locale(encoding = "UTF-16"))
 characters <-unique(hpscripts$character)
@@ -87,24 +88,69 @@ E(g)$color <- ifelse(E(g)$weight > 100, "purple",
                      ifelse(E(g)$weight > 50, "red",
                             ifelse(E(g)$weight > 30, "yellow",
                                    ifelse(E(g)$weight > 20, "blue", "green"))))
+
 data <- toVisNetworkData(g)
-visNetwork(nodes = data$nodes, edges = data$edges) %>%
-  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
-  visInteraction(navigationButtons = TRUE)
-  visPhysics(enabled = FALSE)
-data
+ledges <- data.frame(color =c("green", "blue", "yellow", "red", "purple"),
+                     label = c("0-10", "10-20", "20-30", "30-50", "100+"))
+node_degrees <- degree(g)
+degree_distribution <- data.frame(Node = V(g)$name, Degree = node_degrees)
+
+w<-visNetwork(nodes = data$nodes, edges = data$edges,width = "110%",main = "Mentions Network",)  %>%
+  visInteraction(navigationButtons = TRUE) %>%
+  visPhysics(solver = "repulsion", 
+             barnesHut = list(
+               gravitationalConstant = -2000,
+               centralGravity = 0,
+               springLength = 2000,
+               springConstant = 0.05,
+               damping = 0.09,
+               stabilization = TRUE
+             ))%>%         
+  visLayout(randomSeed = 20) %>%
+  visNodes() %>%
+  visEdges(color = "color")%>%
+  visLegend(addEdges = ledges, useGroups = FALSE) %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE)
+w
+png("HP_Scripts_dataset/img/degreedistrimentions.png", width = 1700, height =1200, units = "px", res = 300)
+barplot(table(node_degrees), 
+        main = "Degree Distribution", 
+        xlab = "Degree", 
+        ylab = "Frequency", 
+        col = "skyblue", 
+        border = "black",  # Add border for bars
+        space = 0.5,       # Adjust space between bars
+        width = 0.8        # Adjust thickness of bars
+)
+dev.off()
+reciprocity_coefficient <- reciprocity(g)
+cat("Reciprocity coefficient:", reciprocity_coefficient, "\n") 
+#Reciprocity coefficient: 0.1170213 0: Indicates no reciprocity; edges are entirely unidirectional.
+
+optimal <- cluster_optimal(g)
+modularity_score <- modularity(optimal)
+cat("Modularity score:", modularity_score, "\n") 
+#Higher values (closer to 1) indicate stronger community structure where nodes within communities are densely connected, and connections between communities are sparse.
+
+####
+visSave(
+  w,
+  "HP_Scripts_dataset/img/mentions_network.html",
+  selfcontained = FALSE
+)
+
 write.csv(data$nodes, "HP_Scripts_dataset/img/character_mentions_nodes.csv", row.names = FALSE)
 edges_df <- data$edges[, c("from", "to", "weight", "color")]
 data$edges$Weight <- NULL
 write.csv(data$edges, "HP_Scripts_dataset/img/character_mentions_edges.csv", row.names = FALSE)
 
-
+####
 relationships_text <- paste(head(directed_edges_df$From), " -> ", head(directed_edges_df$To))
 label_y <- seq(0.2, 0.1, length.out = nrow(head(directed_edges_df)))
 plot.new()
 text(x = rep(0.5, nrow(head(directed_edges_df))), y = label_y, labels = relationships_text, cex = 1.2)
 text(x=0.5, y=0.23,"Instances of edges",  cex = 1.5)
-png("HP_Scripts_dataset/img/elationships.png", width = 1700, height =1200, units = "px", res = 300)
+png("HP_Scripts_dataset/img/relationships.png", width = 1700, height =1200, units = "px", res = 300)
 label_y <- seq(0.6, 0.1, length.out = nrow(head(directed_edges_df)))
 plot.new()
 text(x = rep(0.5, nrow(head(directed_edges_df))), y = label_y, labels = relationships_text, cex = 1.2)
