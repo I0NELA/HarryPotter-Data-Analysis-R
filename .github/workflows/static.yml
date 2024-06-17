@@ -45,5 +45,5 @@ jobs:
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ secrets.PAT_ACCESS }}
         publish_dir: ./03_plots/interaction_network/communities_network
