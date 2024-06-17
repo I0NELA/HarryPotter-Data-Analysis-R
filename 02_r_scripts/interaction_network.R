@@ -5,6 +5,7 @@ library(dplyr)
 library(igraph)
 library(tidyr)
 library(ggplot2)
+library(ggforce)
 library(knitr)
 library(kableExtra)
 library(webshot)
@@ -397,4 +398,276 @@ visSave(
 )
 
 
+##
+## General network analysis and visualization of the `vis_network`:
+## Aggregate everything in a single plot
 
+
+##
+### STEP 1: Convert the vis_network to a igraph object:
+head(edges_df)
+g7 <- graph_from_data_frame(d = edges_df, directed = FALSE)
+E(g7)[1]$weight
+
+
+## STEP 2: Calculate the network diameter
+## (the longest shortest path between any two nodes):
+g7_diameter       <- diameter(g7, directed = FALSE, weights = NA)       # 5 #
+g7_diameter_path  <- get_diameter(g7, directed = FALSE, weights = NA)
+g7_diameter             # 3 #
+g7_diameter_path$name   # "Ghosts"          "Harry Potter"    "Severus Snape" "Charity Burbage"
+
+g7_diameter_weighted        <- diameter(g7, directed = FALSE)
+g7_diameter_weighted_path   <- get_diameter(g7, directed = FALSE)
+g7_diameter_weighted      # 5 #
+g7_diameter_weighted_path$name
+# "Ghosts" -> "Harry Potter" -> "Severus Snape" -> "Charity Burbage" -> "Albus Dumbledore"
+
+
+##
+### STEP 3: Calculate the network degree distribution:
+g7_degree_distribution <- degree_distribution(
+  g7,
+  mode = "all",
+  cumulative = TRUE
+)
+
+# The cumulative distribution for each degree
+# (adjust to match the len of the degree distribution)
+degrees         <- 0 : (length(g7_degree_distribution.dist) - 1)
+cumulative_freq <- 1 - g7_degree_distribution.dist
+
+degree_distribution_plot <- {
+  ggplot(
+    data.frame(degree = degrees, cumulative_freq = cumulative_freq),
+    aes(x = degree, y = cumulative_freq)
+  ) +
+    geom_line(color = "skyblue") +
+    labs(
+      title = "Degree Distribution of Harry Potter Interaction Network",
+      x = "Degree",
+      y = "Cumulative Frequency"
+    ) +
+    theme_light()
+
+}
+
+
+if (!dir.exists("03_plots/interaction_network/communities_network")) {
+  dir.create("03_plots/interaction_network/communities_network")
+}
+
+ggsave(
+  "03_plots/interaction_network/communities_network/degree_distribution.png",
+  plot = degree_distribution_plot,
+  width = 10,
+  height = 10,
+  dpi = 300
+)
+
+
+##
+## STEP 4: Calculate the centrality
+
+## Degree Centrality ##
+g7_degree <- degree(g7)
+head(g7_degree)
+
+top_7_degree <- g7_degree %>%
+  sort(decreasing = TRUE) %>%
+  head(7)
+# top_7_degree
+## 'Harry Potter'       = 169,
+## 'Ron Weasley'        = 148,
+## 'Hermione Granger'   = 146,
+## 'Neville Longbottom' = 89,
+## 'Rubeus Hagrid'      = 75,
+## 'Draco Malfoy'       = 75,
+## 'Fred Weasley'       = 74
+
+
+g7_degree_centrality <- centr_degree(
+  g7,
+  normalized = TRUE
+)
+g7_degree_centrality$res
+g7_degree_centrality$centralization     # 0.8461412 #
+g7_degree_centrality$theoretical_max    # 30450     #
+
+## Eigenvectors Centrality ##
+g7_eigenvector_centrality <- eigen_centrality(
+  g7,
+  directed = FALSE,
+  weights = NA
+)
+g7_eigenvector_centrality$value         # 39.47075  #
+g7_eigenvector_centrality$options$bmat  # "I"       #
+g7_eigenvector_centrality$options$n     # 175       #
+g7_eigenvector_centrality$vector
+
+g7_eigenvector_centrality_top07_vectors <- g7_eigenvector_centrality$vector %>%
+  sort(decreasing = TRUE) %>%
+  head(7)
+# View(g7_eigenvector_centrality_top07_vectors)
+## 'Harry Potter'       = 1,
+## 'Ron Weasley'        = 0.962454743753122,
+## 'Hermione Granger'   = 0.955959631715495,
+## 'Neville Longbottom' = 0.720774365947422,
+## 'Fred Weasley'       = 0.648718154478896,
+## 'Draco Malfoy'       = 0.645982405413439,
+## 'George Weasley'     = 0.633657905056388
+
+
+## Betweenness Centrality ##
+g7_betweenness_centrality <- betweenness(
+  g7,
+  directed = FALSE,
+  weights = NA,
+)
+g7_betweenness_centrality_top07 <- g7_betweenness_centrality %>%
+  sort(decreasing = TRUE) %>%
+  head(7)
+# View(g7_betweenness_centrality_top07)
+
+## 'Harry Potter'       = 4381.7969429253,
+## 'Ron Weasley'        = 2182.47473081813,
+## 'Hermione Granger'   = 2078.9304027596,
+## 'Neville Longbottom' = 455.13473200257,
+## 'Voldemort'          = 370.571001900237,
+## 'Severus Snape'      = 357.721290140979,
+## 'Rubeus Hagrid'      = 334.847394905651
+
+g7_betweenness_centrality_normalized <- betweenness(
+  g7,
+  directed = FALSE,
+  weights = NA,
+  normalized = TRUE
+)
+
+g7_betweenness_centrality_normalized_top07 <- g7_betweenness_centrality_normalized %>%
+  sort(decreasing = TRUE) %>%
+  head(7)
+# View(g7_betweenness_centrality_normalized_top07)
+
+## "Harry Potter"       = 0.291129954350229,
+## "Ron Weasley"        = 0.145005297376794,
+## "Hermione Granger"   = 0.138125732692818,
+## "Neville Longbottom" = 0.0302395011628842,
+## "Voldemort"          = 0.0246210219852659,
+## "Severus Snape"      = 0.0237672772666918,
+## "Rubeus Hagrid"      = 0.0222475180988407
+
+
+##
+## STEP 5: Network Modularity
+
+## CEB (Community Edge Betweenness) ##
+g7_ceb <- cluster_edge_betweenness(g7)
+
+modularity(g7_ceb)
+## 0.05458263
+##  High modularity indicates a strong community structure.
+##
+
+# Plot the modularity dendrogram
+png(
+  "03_plots/interaction_network/ceb_modularity.png",
+  width = 10 * 300, height = 10 * 300, res = 300
+)
+plot(
+  g7_ceb,
+  g7,
+  edge.arrow.size = 0.5,
+  edge.curved = 0.2,
+  vertex.label.cex = 0.5,
+  vertex.size = 5,
+  vertex.label.dist = 1.6,
+  vertex.label.color = "black",
+  vertex.label.family = "sans",
+  vertex.label.font = 2,
+  vertex.label.degree = 0,
+  vertex.label = V(g7)$name,
+  edge.color = "gray",
+  edge.width = 0.5,
+  layout = layout_with_fr,
+  main = "Modularity Dendrogram of Harry Potter Interaction Network (CEB)",
+  sub = paste("The modularity is", round(modularity(g7_ceb), 4))
+)
+dev.off()
+
+
+## CLP (Cluster Label Propagation) ##
+g7_clp <- cluster_label_prop(g7)
+plot(
+  g7_clp,
+  g7,
+  edge.arrow.size = 0.5,
+  edge.curved = 0.2,
+  vertex.label.cex = 0.5,
+  vertex.size = 5,
+  vertex.label.dist = 1.6,
+  vertex.label.color = "black",
+  vertex.label.family = "sans",
+  vertex.label.font = 2,
+  vertex.label.degree = 0,
+  vertex.label = V(g7)$name,
+  edge.color = "gray",
+  edge.width = 0.5,
+  layout = layout_with_fr
+)
+
+
+## CFG (Community Fast Greedy) ##
+g7_cfg <- cluster_fast_greedy(simplify(g7))
+
+# Plot the dendrogram of the modularity
+plot(g7_cfg, simplify(g7))
+
+
+##
+## STEP 6: Assortativity
+
+## Assortativity ##
+g7_assortativity <- assortativity_degree(g7)
+g7_assortativity
+# ''' -0.3279172
+#   Negative assortativity indicates disassortative mixing.
+# '''
+
+
+##
+## STEP 7: Network Density & Clustering Coefficient (Transitivity)
+
+## Network Density ##
+g7_density <- graph.density(g7)
+g7_density
+# ''' 0.1251232
+#   The density of a network is the ratio of the number of edges to the number of possible edges.
+# '''
+
+## Clustering Coefficient (Transitivity) ##
+g7_transitivity <- transitivity(g7)
+g7_transitivity
+# ''' 0.3423269
+#   The transitivity of a network is the ratio of the number of triangles to the number of connected triples.
+# '''
+
+
+##
+## RECAP: Print the summary of the network analysis
+cat(
+  "\n",
+  "Harry Potter Interaction Network Analysis Summary\n",
+  "-----------------------------------------------\n",
+  "Network Diameter: \t", g7_diameter, "\n",
+  "Network Density: \t", g7_density, "\n",
+  "Network Transitivity: \t", g7_transitivity, "\n",
+  "Network Assortativity: \t", g7_assortativity, "\n",
+  "Network Modularity: \t", modularity(g7_ceb), "\n",
+  "Degree Centrality Centralization: \t", g7_degree_centrality$centralization, "\n\n"
+)
+
+
+##
+## EXTRA: Sankey Circle Diagram of the Network
+# TODO: Try to implement the Sankey Circle Diagram of the Network
